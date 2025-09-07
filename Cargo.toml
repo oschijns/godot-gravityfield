@@ -1,0 +1,21 @@
+[package]
+name = "godot-gravityfield"
+version = "0.1.0"
+edition = "2024"
+authors = ["Olivier Schyns"]
+license = "MIT"
+keywords = ["godot", "gravity", "physics"]
+repository = "https://github.com/oschijns/godot-gravityfield"
+categories = ["game-engines"]
+description = "Library providing various gravity field shapes for Godot"
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+
+# Allow this library to be used as a standalone
+standalone = []
+
+[dependencies]
+godot = "0.3"
