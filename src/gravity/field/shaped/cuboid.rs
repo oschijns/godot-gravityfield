@@ -87,15 +87,8 @@ macro_rules! shape_cuboid {
             fn colliders(&mut self) -> Vec<(Gd<GShape>, Transform)> {
                 // Recompute the internal shapes if requested
                 if self.internal.is_none() {
-                    self.internal = if self.edge_radius > 0.0 {
-                        Some(Internal::new_rounded(
-                            &self.box_size,
-                            self.edge_radius,
-                            self.hollow,
-                        ))
-                    } else {
-                        Some(Internal::new_simple(&self.box_size))
-                    };
+                    self.internal =
+                        Some(Internal::new(&self.box_size, self.edge_radius, self.hollow));
                 }
 
                 // Ask the internal shape for its colliders set
@@ -155,31 +148,18 @@ pub mod inner2d {
 
     /// Specify if we need to generate a single box shape or
     /// if we need multiple one to create the rounded edges.
-    enum Internal {
-        /// No rounding, we only need a single box shape.
-        Simple(Gd<RectangleShape2D>),
+    struct Internal {
+        /// One box for each of the three side of the box.
+        /// Should be None if the cuboid is hollow.
+        center: Option<Gd<RectangleShape2D>>,
 
-        /// With rounding we need multiple boxes and capsules.
-        Rounded {
-            /// One box for each of the three side of the box.
-            /// Should be None if the cuboid is hollow.
-            face: Option<Gd<RectangleShape2D>>,
-
-            /// Capsules for each set of four parallel edges.
-            edges: Box<[(Gd<CapsuleShape2D>, TransformBuilder2D<1, 2>); 2]>,
-        },
+        /// Capsules for each set of four parallel edges.
+        edges: Box<[(Gd<CapsuleShape2D>, TransformBuilder2D<1, 2>); 2]>,
     }
 
     impl Internal {
-        /// Create a simple box shape
-        fn new_simple(size: &Vector2) -> Self {
-            let mut shape = RectangleShape2D::new_gd();
-            shape.set_size(*size);
-            Self::Simple(shape)
-        }
-
         /// Create a rounded box shape
-        fn new_rounded(size: &Vector2, radius: real, hollow: bool) -> Self {
+        fn new(size: &Vector2, radius: real, hollow: bool) -> Self {
             // Create a shape
             let diameter = radius * 2.0;
             macro_rules! edge {
@@ -197,14 +177,14 @@ pub mod inner2d {
             }
 
             // create the faces
-            let face = if hollow {
+            let center = if hollow {
                 None
             } else {
-                let mut face = RectangleShape2D::new_gd();
+                let mut center = RectangleShape2D::new_gd();
 
-                face.set_size(*size);
+                center.set_size(*size);
                 // Create boxes for the six faces
-                Some(face)
+                Some(center)
             };
 
             // prepare the transforms for the twelve edges
@@ -220,7 +200,7 @@ pub mod inner2d {
             ]);
 
             // create the rounded shape
-            Self::Rounded { face, edges }
+            Self { center, edges }
         }
 
         /// Return a list of colliders
@@ -231,29 +211,22 @@ pub mod inner2d {
                 };
             }
 
-            match &self {
-                Self::Simple(shape) => {
-                    vec![cast_shape![shape, Transform2D::IDENTITY]]
-                }
-                Self::Rounded { face, edges } => {
-                    // allocate a vector to store the shapes
-                    let size = if face.is_some() { 3 * 5 } else { 3 * 4 };
-                    let mut shapes = Vec::with_capacity(size);
+            // allocate a vector to store the shapes
+            let size = if self.center.is_some() { 5 } else { 4 };
+            let mut shapes = Vec::with_capacity(size);
 
-                    // Push the internal boxes into the list
-                    if let Some(face) = face {
-                        shapes.push(cast_shape![face, Transform2D::IDENTITY]);
-                    }
+            // Push the internal boxes into the list
+            if let Some(center) = &self.center {
+                shapes.push(cast_shape![center, Transform2D::IDENTITY]);
+            }
 
-                    // add the shapes for the edges
-                    for (edge, trs) in edges.iter() {
-                        for i in 0..4 {
-                            shapes.push(cast_shape![edge, trs.build(0, i)]);
-                        }
-                    }
-                    shapes
+            // add the shapes for the edges
+            for (edge, trs) in self.edges.iter() {
+                for i in 0..4 {
+                    shapes.push(cast_shape![edge, trs.build(0, i)]);
                 }
             }
+            shapes
         }
     }
 }
@@ -322,31 +295,18 @@ pub mod inner3d {
 
     /// Specify if we need to generate a single box shape or
     /// if we need multiple one to create the rounded edges.
-    enum Internal {
-        /// No rounding, we only need a single box shape.
-        Simple(Gd<BoxShape3D>),
+    struct Internal {
+        /// One box for each of the three side of the box.
+        /// Should be None if the cuboid is hollow.
+        faces: Option<[Gd<BoxShape3D>; 3]>,
 
-        /// With rounding we need multiple boxes and capsules.
-        Rounded {
-            /// One box for each of the three side of the box.
-            /// Should be None if the cuboid is hollow.
-            faces: Option<[Gd<BoxShape3D>; 3]>,
-
-            /// Capsules for each set of four parallel edges.
-            edges: Box<[(Gd<CapsuleShape3D>, TransformBuilder3D<1, 4>); 3]>,
-        },
+        /// Capsules for each set of four parallel edges.
+        edges: Box<[(Gd<CapsuleShape3D>, TransformBuilder3D<1, 4>); 3]>,
     }
 
     impl Internal {
-        /// Create a simple box shape
-        fn new_simple(size: &Vector3) -> Self {
-            let mut shape = BoxShape3D::new_gd();
-            shape.set_size(*size);
-            Self::Simple(shape)
-        }
-
         /// Create a rounded box shape
-        fn new_rounded(size: &Vector3, radius: real, hollow: bool) -> Self {
+        fn new(size: &Vector3, radius: real, hollow: bool) -> Self {
             // Create a shape
             let diameter = radius * 2.0;
             macro_rules! face {
@@ -421,7 +381,7 @@ pub mod inner3d {
             ]);
 
             // create the rounded shape
-            Self::Rounded { faces, edges }
+            Self { faces, edges }
         }
 
         /// Return a list of colliders
@@ -432,31 +392,28 @@ pub mod inner3d {
                 };
             }
 
-            match &self {
-                Self::Simple(shape) => {
-                    vec![cast_shape![shape, Transform3D::IDENTITY]]
-                }
-                Self::Rounded { faces, edges } => {
-                    // allocate a vector to store the shapes
-                    let size = if faces.is_some() { 3 * 5 } else { 3 * 4 };
-                    let mut shapes = Vec::with_capacity(size);
+            // allocate a vector to store the shapes
+            let size = if self.faces.is_some() { 3 * 5 } else { 3 * 4 };
+            let mut shapes = Vec::with_capacity(size);
 
-                    // Push the internal boxes into the list
-                    if let Some(faces) = faces {
-                        for face in faces {
-                            shapes.push(cast_shape![face, Transform3D::IDENTITY]);
-                        }
-                    }
-
-                    // add the shapes for the edges
-                    for (edge, trs) in edges.iter() {
-                        for i in 0..4 {
-                            shapes.push(cast_shape![edge, trs.build(0, i)]);
-                        }
-                    }
-                    shapes
+            // Push the internal boxes into the list
+            if let Some(faces) = &self.faces {
+                for face in faces {
+                    shapes.push(cast_shape![face, Transform3D::IDENTITY]);
                 }
             }
+
+            // add the shapes for the edges
+            for (edge, trs) in self.edges.iter() {
+                for i in 0..4 {
+                    shapes.push(cast_shape![edge, trs.build(0, i)]);
+                }
+            }
+            shapes
         }
     }
 }
+
+// re-export
+pub use inner2d::GravityShapedCuboid2D;
+pub use inner3d::GravityShapedCuboid3D;

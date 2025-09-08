@@ -8,6 +8,9 @@ pub mod cuboid;
 /// Define a shaped backed by a curve
 pub mod curve;
 
+/// Define a ring shape
+pub mod ring3d;
+
 use godot::obj::{Gd, GodotClass};
 
 /// Trait to implement a shape for a gravity field
@@ -20,15 +23,6 @@ where
 
     /// Get the list of colliders to generate a static body.
     fn colliders(&mut self) -> Vec<(Gd<Shp>, Trs)>;
-}
-
-/// Interface for internal shape representation
-pub trait MakeColliders<Shp, Trs>
-where
-    Shp: GodotClass,
-{
-    /// Get the list of colliders to generate a static body.
-    fn colliders(&self) -> Vec<(Gd<Shp>, Trs)>;
 }
 
 macro_rules! gravity_field_shaped {
