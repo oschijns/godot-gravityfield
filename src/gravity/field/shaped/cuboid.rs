@@ -172,6 +172,7 @@ pub mod inner2d {
             }
             macro_rules! pos {
                 ( $x:tt , $y:tt ) => {
+                    #[allow(clippy::neg_multiply)]
                     Vector2::new(size.x * unit![$x], size.y * unit![$y])
                 };
             }
@@ -328,6 +329,7 @@ pub mod inner3d {
             }
             macro_rules! pos {
                 (  $x:tt , $y:tt , $z:tt ) => {
+                    #[allow(clippy::neg_multiply)]
                     Vector3::new(size.x * unit![$x], size.y * unit![$y], size.z * unit![$z])
                 };
             }

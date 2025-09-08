@@ -39,7 +39,7 @@ impl<Rot, const R: usize, Pos, const P: usize, Trs> TransformBuilder<Rot, R, Pos
         Self {
             rotations,
             positions,
-            phantom: PhantomData::default(),
+            phantom: PhantomData,
         }
     }
 }
